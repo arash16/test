@@ -27,9 +27,14 @@ export const PatientDashboard = () => {
           aiService.getAll().catch(() => ({ analyses: [] })),
           userService.getTrends().catch(() => ({ trends: [] })),
         ]);
-        setStats(statsResponse.stats);
         const appointments = appointmentsResponse.appointments || [];
-        setRecentAppointments(appointments.slice(0, 3));
+        const userAppointments = appointments.filter(apt => 
+          (typeof apt.patient === 'object' ? apt.patient._id : apt.patient) === user._id
+        );
+        // better to fix in backend, not here
+        statsResponse.stats.myAppointments = userAppointments.length;
+        setStats(statsResponse.stats);
+        setRecentAppointments(userAppointments.slice(0, 3));
         const analyses = analysesResponse.analyses || [];
         setRecentAnalyses(analyses.slice(0, 3));
         setTrends(trendsResponse.trends || []);
