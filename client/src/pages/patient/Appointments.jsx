@@ -47,7 +47,6 @@ export const Appointments = () => {
   const fetchDoctors = async () => {
     try {
       const { users } = await userService.getAll({ role: 'doctor' });
-      console.log(users);
       setDoctors(users);
     } catch (error) {
       console.error('Failed to fetch doctors:', error);
