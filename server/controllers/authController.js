@@ -163,7 +163,7 @@ const login = async (req, res, next) => {
 const getMe = async (req, res, next) => {
   try {
     const User = getUserModel();
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     
     // Remove password from response
     if (user && user.password) {
