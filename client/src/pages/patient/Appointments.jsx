@@ -20,6 +20,13 @@ export const Appointments = () => {
     reason: '',
     symptoms: '',
   });
+  const [errors, setErrors] = useState({
+    doctor: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    reason: '',
+  });
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -40,14 +47,102 @@ export const Appointments = () => {
   const fetchDoctors = async () => {
     try {
       const { users } = await userService.getAll({ role: 'doctor' });
+      console.log(users);
       setDoctors(users);
     } catch (error) {
       console.error('Failed to fetch doctors:', error);
     }
   };
 
+  const validateDate = (date) => {
+    if (!date) return 'Date is required';
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      return 'Date must be in the future';
+    }
+    return '';
+  };
+
+  const validateTime = (time) => {
+    if (!time) return 'Time is required';
+    const [hours] = time.split(':').map(Number);
+    if (hours < 9 || hours >= 17) {
+      return 'Time must be during business hours (9 AM - 5 PM)';
+    }
+    return '';
+  };
+
+  const validateDoctor = (doctorId) => {
+    if (!doctorId) return 'Doctor selection is required';
+    return '';
+  };
+
+  const validateReason = (reason) => {
+    if (!reason) return 'Reason is required';
+    if (reason.length < 10) {
+      return 'Reason must be at least 10 characters';
+    }
+    return '';
+  };
+
+  const handleFieldChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+
+    let error = '';
+    switch (field) {
+      case 'doctor':
+        error = validateDoctor(value);
+        break;
+      case 'appointmentDate':
+        error = validateDate(value);
+        break;
+      case 'appointmentTime':
+        error = validateTime(value);
+        break;
+      case 'reason':
+        error = validateReason(value);
+        break;
+      default:
+        break;
+    }
+    
+    setErrors({ ...errors, [field]: error });
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.doctor &&
+      formData.appointmentDate &&
+      formData.appointmentTime &&
+      formData.reason &&
+      !errors.doctor &&
+      !errors.appointmentDate &&
+      !errors.appointmentTime &&
+      !errors.reason
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const doctorError = validateDoctor(formData.doctor);
+    const dateError = validateDate(formData.appointmentDate);
+    const timeError = validateTime(formData.appointmentTime);
+    const reasonError = validateReason(formData.reason);
+    
+    setErrors({
+      doctor: doctorError,
+      appointmentDate: dateError,
+      appointmentTime: timeError,
+      reason: reasonError,
+    });
+    
+    if (doctorError || dateError || timeError || reasonError) {
+      return;
+    }
+    
     try {
       await appointmentService.create(formData);
       setShowForm(false);
@@ -58,6 +153,14 @@ export const Appointments = () => {
         reason: '',
         symptoms: '',
       });
+      setErrors({
+        doctor: '',
+        appointmentDate: '',
+        appointmentTime: '',
+        reason: '',
+      });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
       fetchAppointments();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to create appointment');
@@ -96,6 +199,19 @@ export const Appointments = () => {
 
   return (
     <div className="space-y-6">
+      {showSuccess && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative dark:bg-green-900 dark:border-green-700 dark:text-green-200" role="alert">
+          <strong className="font-bold">Success! </strong>
+          <span className="block sm:inline">Your appointment has been booked successfully.</span>
+          <button
+            className="absolute top-0 bottom-0 right-0 px-4 py-3"
+            onClick={() => setShowSuccess(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">My Appointments</h1>
@@ -118,9 +234,11 @@ export const Appointments = () => {
                   <Label htmlFor="doctor">Doctor</Label>
                   <select
                     id="doctor"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ${
+                      errors.doctor ? 'border-red-500 focus:ring-red-500' : 'border-input'
+                    } bg-background`}
                     value={formData.doctor}
-                    onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
+                    onChange={(e) => handleFieldChange('doctor', e.target.value)}
                     required
                   >
                     <option value="">Select a doctor</option>
@@ -130,36 +248,51 @@ export const Appointments = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.doctor && (
+                    <p className="text-sm text-red-500">{errors.doctor}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="appointmentDate">Date</Label>
                   <Input
                     id="appointmentDate"
                     type="date"
+                    className={errors.appointmentDate ? 'border-red-500 focus:ring-red-500' : ''}
                     value={formData.appointmentDate}
-                    onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value })}
+                    onChange={(e) => handleFieldChange('appointmentDate', e.target.value)}
                     required
                     min={new Date().toISOString().split('T')[0]}
                   />
+                  {errors.appointmentDate && (
+                    <p className="text-sm text-red-500">{errors.appointmentDate}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="appointmentTime">Time</Label>
                   <Input
                     id="appointmentTime"
                     type="time"
+                    className={errors.appointmentTime ? 'border-red-500 focus:ring-red-500' : ''}
                     value={formData.appointmentTime}
-                    onChange={(e) => setFormData({ ...formData, appointmentTime: e.target.value })}
+                    onChange={(e) => handleFieldChange('appointmentTime', e.target.value)}
                     required
                   />
+                  {errors.appointmentTime && (
+                    <p className="text-sm text-red-500">{errors.appointmentTime}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reason">Reason</Label>
                   <Input
                     id="reason"
+                    className={errors.reason ? 'border-red-500 focus:ring-red-500' : ''}
                     value={formData.reason}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    onChange={(e) => handleFieldChange('reason', e.target.value)}
                     placeholder="Brief reason for visit"
                   />
+                  {errors.reason && (
+                    <p className="text-sm text-red-500">{errors.reason}</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
@@ -173,7 +306,9 @@ export const Appointments = () => {
                 />
               </div>
               <div className="flex space-x-2">
-                <Button type="submit">Book Appointment</Button>
+                <Button type="submit" disabled={!isFormValid()}>
+                  Book Appointment
+                </Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
